@@ -30,9 +30,13 @@
 #define NOTE_E4 329
 #define NOTE_DIS4 311
 #define NOTE_D4 294
+#define NOTE_CIS4 277
 #define NOTE_C4 261
 #define NOTE_H3 247
 #define NOTE_B3 233
+#define NOTE_A3 220
+#define NOTE_G3 196
+#define NOTE_F3 174
 
 #define NOTE_PAUSE 0
 

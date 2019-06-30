@@ -31,11 +31,19 @@
 #define DEBUGGING TRUE
 
 #define SONGS 6
+#define SONG_A 0
+#define SONG_B 1
+#define SONG_C 2
+#define SONG_D 3
+#define SONG_E 4
+#define SONG_F 5
 
 static const uint16_t music[SONGS][400] PROGMEM = {
 
 	/*** A-Team theme song ***/
 	{	52, // array length
+		NOTE_PAUSE,0x0004,
+		NOTE_PAUSE,0x0004,
 		NOTE_F5,0x0006,
 		NOTE_C5,0x0003,
 		NOTE_F5,0x000F,
@@ -85,14 +93,14 @@ static const uint16_t music[SONGS][400] PROGMEM = {
 		NOTE_F4,0x0003,
 		NOTE_E4,0x0003,
 		NOTE_F4,0x000C,
-		NOTE_PAUSE,0x0004,
-		NOTE_PAUSE,0x0004,
 		NOTE_PAUSE,0x0004
 	},
 	
 	/*** Imperial March ***/
 	{
 		73, // array length
+		NOTE_PAUSE,0x0004,
+		NOTE_PAUSE,0x0004,
 		NOTE_G4,0x0008,
 		NOTE_G4,0x0008,
 		NOTE_G4,0x0008,
@@ -163,14 +171,14 @@ static const uint16_t music[SONGS][400] PROGMEM = {
 		NOTE_DIS4,0x0006,
 		NOTE_B4,0x0002,
 		NOTE_G4,0x0010,
-		NOTE_PAUSE,0x0004,
-		NOTE_PAUSE,0x0004,
 		NOTE_PAUSE,0x0004
 	},
 	
 	/*** Game of Thrones ***/
 	{
 		60, // array length
+		NOTE_PAUSE,0x0004,
+		NOTE_PAUSE,0x0008,
 		NOTE_G4,0x000C,
 		NOTE_C4,0x000C,
 		NOTE_DIS4,0x0002,
@@ -228,14 +236,14 @@ static const uint16_t music[SONGS][400] PROGMEM = {
 		NOTE_D5,0x0008,
 		NOTE_B4,0x0004,
 		NOTE_C5,0x0024,
-		NOTE_PAUSE,0x0004,
-		NOTE_PAUSE,0x0008,
 		NOTE_PAUSE,0x0008
 	},
 	
 	/*** Time to say Goodbye ***/
 	{
 		114, // array length
+		NOTE_PAUSE,0x0008,
+		NOTE_PAUSE,0x0008,
 		NOTE_D4,0x000E,
 		NOTE_G4,0x001C,
 		NOTE_FIS4,0x0007,
@@ -347,14 +355,14 @@ static const uint16_t music[SONGS][400] PROGMEM = {
 		NOTE_FIS5,0x000E,
 		NOTE_GIS5,0x000E,
 		NOTE_A5,0x002A,
-		NOTE_PAUSE,0x0008,
-		NOTE_PAUSE,0x0008,
 		NOTE_PAUSE,0x0008	
 	},
 	
 	/*** Fuchsgrabenpolka ***/
 	{
 		138, // array length
+		NOTE_PAUSE,0x0003,
+		NOTE_PAUSE,0x0008,
 		NOTE_F4,0x0009,		// erster Teil
 		NOTE_A4,0x0003,
 		NOTE_B4,0x0009,
@@ -490,13 +498,13 @@ static const uint16_t music[SONGS][400] PROGMEM = {
 		NOTE_B4,0x000F,
 		NOTE_PAUSE,0x0003,
 		NOTE_B4,0x0003,
-		NOTE_PAUSE,0x0003,
-		NOTE_PAUSE,0x0008,
 		NOTE_PAUSE,0x0008
 	},
 	
 	/*** Donauwalzer ***/
 	{	173, // array length
+		0x0000,0x0004,
+		0x0000,0x0004,
 		0x0126,0x0004,
 		0x0172,0x0004,
 		0x01B8,0x0004,
@@ -667,8 +675,6 @@ static const uint16_t music[SONGS][400] PROGMEM = {
 		0x014A,0x0004,
 		0x01B8,0x0004,
 		0x0000,0x0004,
-		0x0000,0x0004,
-		0x0000,0x0004,
 		0x0000,0x0004
 	}
 };
@@ -677,7 +683,7 @@ static const uint16_t music[SONGS][400] PROGMEM = {
 
 void initTimer0(void);
 void initTimer1(void);
-void initButton(void);
+void initButtons(void);
 void initDebugging(void);
 
 void playToneBackend(uint16_t duration_ms, uint16_t frequency_hz, uint8_t internotegap_ms);
@@ -755,15 +761,17 @@ uint16_t musicPosition=0;
 
 int main(void){
 
+	uint16_t songSize = 0;
 	uint16_t currentFrequency = 0;
 	uint16_t currentDuration = 0;
 	
 	uint8_t state=STOP;
-	uint8_t i=4;
-	uint16_t debounce=0;
+	uint8_t stateSong=SONG_A;
+	uint16_t debounceBtnOnOff=0;
+	uint16_t debounceBtnSong=0;
 	
 	/* do initializations */
-	initButton();
+	initButtons();
 	initTimer0();
 	initTimer1();
 	
@@ -781,20 +789,35 @@ int main(void){
 	while(TRUE){
 		/* check if state change is needed (pressed button)*/		
 		if ((PIND & (1<<PD3)) == 0){
-			debounce++;
-		} else {
-			debounce = 0;
+			debounceBtnOnOff++;
+			} else {
+			debounceBtnOnOff = 0;
 		}
+		if ((PIND & (1<<PD4)) == 0){
+			debounceBtnSong++;
+			} else {
+			debounceBtnSong = 0;
+		}
+		
 		if (state == STOP){
-			if (debounce == DEBOUNCELIMIT){
+			if (debounceBtnOnOff == DEBOUNCELIMIT){
 				state = PLAY;
-				debounce = 0;
+				debounceBtnOnOff = 0;
 				musicPosition = 0;
 			}
-		} else {
-			if (debounce >= 2*DEBOUNCELIMIT) {
+		} else {	// state == PLAY
+			if (debounceBtnOnOff >= 2*DEBOUNCELIMIT) {
 				state = STOP;
-				debounce = 0;
+				debounceBtnOnOff = 0;
+				debounceBtnSong = 0;
+			}
+			else if (debounceBtnSong >= DEBOUNCELIMIT) {
+				musicPosition = 0;
+				debounceBtnSong = 0;
+				stateSong += 1;
+				if (stateSong==SONGS) {
+					stateSong = 0;
+				}
 			}
 		}
 		
@@ -802,15 +825,49 @@ int main(void){
 			setDebuggingLed();
 			/* if next note should be played */
 			if(remainingDuration == 0){
+				
+				/* fetch music date */
+				switch (stateSong)
+				{
+					case SONG_A:
+						currentFrequency = pgm_read_word(&music[SONG_A][2*musicPosition+1]);
+						currentDuration =  pgm_read_word(&music[SONG_A][2*musicPosition+2]);
+						songSize = music[SONG_A][0];
+						break;
+					case SONG_B:
+						currentFrequency = pgm_read_word(&music[SONG_B][2*musicPosition+1]);
+						currentDuration =  pgm_read_word(&music[SONG_B][2*musicPosition+2]);
+						songSize = music[SONG_B][0];
+						break;
+					case SONG_C:
+						currentFrequency = pgm_read_word(&music[SONG_C][2*musicPosition+1]);
+						currentDuration =  pgm_read_word(&music[SONG_C][2*musicPosition+2]);
+						songSize = music[SONG_C][0];
+						break;
+					case SONG_D:
+						currentFrequency = pgm_read_word(&music[SONG_D][2*musicPosition+1]);
+						currentDuration =  pgm_read_word(&music[SONG_D][2*musicPosition+2]);
+						songSize = music[SONG_D][0];
+						break;
+					case SONG_E:
+						currentFrequency = pgm_read_word(&music[SONG_E][2*musicPosition+1]);
+						currentDuration =  pgm_read_word(&music[SONG_E][2*musicPosition+2]);
+						songSize = music[SONG_E][0];
+						break;
+					case SONG_F:
+						currentFrequency = pgm_read_word(&music[SONG_F][2*musicPosition+1]);
+						currentDuration =  pgm_read_word(&music[SONG_F][2*musicPosition+2]);
+						songSize = music[SONG_F][0];
+						break;
+				}
+				
+				
 				/* if there are more notes to play */
-				if(musicPosition >= music[i][0]){
+				if(musicPosition >= songSize){ //music[stateSong][0]){
 					/* we have finished the track - stop */
 					state = STOP;
 					setPWM(0);
 				} else {
-					/* fetch music date */
-					currentFrequency = pgm_read_word(&music[i][2*musicPosition+1]);
-					currentDuration =  pgm_read_word(&music[i][2*musicPosition+2]);
 					/* play tone */
 					playToneBackend(note2duration(currentDuration), currentFrequency, INTERNOTEGAP);
 					musicPosition++;
@@ -848,10 +905,12 @@ void initTimer1(void){
 }
 
 
-void initButton(void){
-	/* set PortD3 as input with Pullup */
+void initButtons(void){
+	/* set PortD3 + PortD4 as input with Pullup */
 	PORTD |= (1<<PD3);
 	DDRD &= ~(1<<PD3);
+	PORTD |= (1<<PD4);
+	DDRD &= ~(1<<PD4);
 }
 
 void initDebugging(void){
